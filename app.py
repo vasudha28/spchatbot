@@ -4,23 +4,189 @@ from pymongo import MongoClient
 from flask_cors import CORS
 from bson import ObjectId
 from datetime import datetime
+import re
 
 app = Flask(__name__)
 CORS(app)
 
-app.config["MONGO_URI"] = "mongodb+srv://vasudha:vasudha@cluster0.0vkno.mongodb.net/usersDB?authSource=admin&retryWrites=true&w=majority&readPreference=primary"
+app.secret_key = '1891235489'
+
+app.config["MONGO_URI"] = "mongodb+srv://vasudha:vasudha@cluster0.0vkno.mongodb.net/bfsi?authSource=admin&retryWrites=true&w=majority&readPreference=primary"
 mongo = PyMongo(app)
 
 try:
-    client = MongoClient('mongodb+srv://vasudha:vasudha@cluster0.0vkno.mongodb.net/usersDB?authSource=admin&retryWrites=true&w=majority&readPreference=primary')
-    db = client.get_database("usersDB")
+    client = MongoClient('mongodb+srv://vasudha:vasudha@cluster0.0vkno.mongodb.net/bfsi?authSource=admin&retryWrites=true&w=majority&readPreference=primary')
+    db = client.get_database("bfsi")
     print("Databases:", client.list_database_names())
     print("Connection successful!")
 except Exception as e:
     print("Connection failed:", e)
 
+
 @app.route('/')
-def home():
+def login_redirect():
+    return render_template('login.html')
+
+
+@app.route('/register/user', methods=['GET', 'POST'])
+def register_user_page():
+    if request.method == 'POST':
+        # Get form data
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirmPassword')
+
+        # Validation
+        if not username or not email or not password or not confirm_password:
+            flash('All fields are required.', 'error')
+            return redirect(url_for('register_user_page'))
+        
+        if password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return redirect(url_for('register_user_page'))
+
+        # Check if user already exists
+        existing_user = mongo.db.users.find_one({'username': username})
+        if existing_user:
+            flash('Username already exists.', 'error')
+            return redirect(url_for('register_user_page'))
+
+        # Store user in the database
+        try:
+            mongo.db.users.insert_one({
+                'username': username,
+                'email': email,
+                'password': password,
+                'role': 'user'  # Default role for registration
+            })
+            flash('Successfully registered! Please login.', 'success')
+            return redirect(url_for('login_page'))
+        except Exception as e:
+            flash('An error occurred while registering. Please try again.', 'error')
+            return redirect(url_for('register_user_page'))
+
+    # Render the registration page for GET requests
+    return render_template('register_user.html')
+
+
+
+@app.route('/register/admin', methods=['GET', 'POST'])
+def register_admin():
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            username = data.get('username')
+            work_email = data.get('work_email')
+            password = data.get('password')
+            role = data.get('role', 'admin')  # Default role: admin
+
+            # Validate input fields
+            if not username or not work_email or not password:
+                return jsonify({'error': 'All fields are required!'}), 400
+
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", work_email):
+                return jsonify({'error': 'Invalid email format!', 'field': 'work_email'}), 400
+
+            # Check for duplicates in MongoDB
+            if mongo.db.admin.find_one({'username': username}):
+                return jsonify({'error': 'Username already exists!', 'field': 'username'}), 400
+
+            if mongo.db.admin.find_one({'work_email': work_email}):
+                return jsonify({'error': 'Email already registered!', 'field': 'work_email'}), 400
+
+            # Store the admin data in MongoDB
+            mongo.db.admin.insert_one({
+                'username': username,
+                'work_email': work_email,
+                'password': password,  # Store hashed password in production
+                'role': role
+            })
+
+            return jsonify({'message': 'Admin registered successfully!', 'redirect': '/login'}), 201
+
+        except Exception as e:
+            print(f"Error during registration: {e}")
+            return jsonify({'error': 'An error occurred during registration. Please try again.'}), 500
+
+    # Render the admin registration form for GET requests
+    return render_template('register_admin.html')
+
+
+
+@app.route('/register/superadmin', methods=['GET', 'POST'])
+def register_superadmin():
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            username = data.get('username')
+            work_email = data.get('work_email')
+            password = data.get('password')
+
+            # Validate input fields
+            if not username or not work_email or not password:
+                return jsonify({'error': 'All fields are required!'}), 400
+
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", work_email):
+                return jsonify({'error': 'Invalid email format!', 'field': 'work_email'}), 400
+
+
+            # Save Super Admin details to the database
+            mongo.db.superadmin.insert_one({
+                'username': username,
+                'work_email': work_email,
+                'password': password  # Store hashed password in production
+            })
+
+            return jsonify({'message': 'Super Admin registered successfully!', 'redirect': '/login'}), 201
+
+        except Exception as e:
+            print(f"Error during Super Admin registration: {e}")
+            return jsonify({'error': 'An error occurred during registration. Please try again.'}), 500
+
+    # Render the Super Admin registration page for GET requests
+    return render_template('register_superadmin.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            username = data.get('username')
+            password = data.get('password')
+            role = data.get('role')
+
+            # Validate input
+            if not username or not password or not role:
+                return jsonify({'error': 'All fields are required!'}), 400
+
+            # Query respective collection based on role
+            if role == 'user':
+                user = mongo.db.users.find_one({'username': username, 'password': password})
+                if user:
+                    return jsonify({'redirect': '/user.html'}), 200
+            elif role == 'admin':
+                admin = mongo.db.admin.find_one({'username': username, 'password': password})
+                if admin:
+                    return jsonify({'redirect': '/admin.html'}), 200
+            elif role == 'superadmin':
+                superadmin = mongo.db.superadmin.find_one({'username': username, 'password': password})
+                if superadmin:
+                    return jsonify({'redirect': '/sa.html'}), 200
+
+            # If no match is found
+            return jsonify({'error': 'Invalid username, password, or role.'}), 401
+
+        except Exception as e:
+            print(f"Error during login: {e}")
+            return jsonify({'error': 'An error occurred during login. Please try again.'}), 500
+
+@app.route('/user')
+def user():
     try:
         # Explicitly fetch only scenarios marked as visible to users
         scenarios = list(mongo.db.admin.find({
@@ -30,6 +196,21 @@ def home():
     except Exception as e:
         print(f"Error fetching scenarios: {e}")
         return jsonify({"error": "Failed to fetch scenarios"}), 500
+    
+
+# Routes for rendering additional HTML templates
+@app.route('/user.html')
+def user_page():
+    return render_template('user.html')
+
+@app.route('/admin.html')
+def admin_page():
+    return render_template('admin.html')
+
+@app.route('/sa.html')
+def sa_page():
+    return render_template('sa.html')
+
 
 @app.route('/admindashboard')
 def admin_dashboard():
@@ -74,6 +255,7 @@ def question():
     scenarios = mongo.db.admin.find({"visible_to_users": True})
     return render_template('index.html', scenarios=scenarios)
 
+
 @app.route('/create', methods=['POST'])
 def create_scenario():
     try:
@@ -88,6 +270,7 @@ def create_scenario():
     except Exception as e:
         print(f"Error creating scenario: {e}")
         return jsonify({"error": "Failed to create scenario"}), 500
+
 
 @app.route('/history', methods=['GET'])
 def get_history():
@@ -107,6 +290,8 @@ def get_history():
     except Exception as e:
         print(f"Error fetching history: {e}")
         return jsonify({"error": "Failed to fetch history"}), 500
+    
+
 
 @app.route('/delete/<scenario_id>', methods=['DELETE'])
 def delete_scenario(scenario_id):
@@ -121,6 +306,7 @@ def delete_scenario(scenario_id):
     except Exception as e:
         print(f"Error deleting scenario: {e}")
         return jsonify({"error": "Failed to delete scenario"}), 500
+    
 
 @app.route('/delete-batch', methods=['POST'])
 def delete_batch():
@@ -142,6 +328,8 @@ def delete_batch():
     except Exception as e:
         print(f"Error in batch delete: {e}")
         return jsonify({"error": "Failed to delete scenarios"}), 500
+    
+
 
 @app.route('/toggle_admin_visibility', methods=['POST'])
 def toggle_admin_visibility():
@@ -196,6 +384,7 @@ def toggle_visibility():
     except Exception as e:
         print(f"Error toggling visibility: {e}")
         return jsonify({"error": "Failed to update scenarios"}), 500
+    
 @app.route('/admin')
 def admin_view():
     """Route for the regular admin dashboard"""

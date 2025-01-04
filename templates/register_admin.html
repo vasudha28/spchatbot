@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Registration - AI Roleplay System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .registration-container {
+            max-width: 500px;
+            margin: 50px auto;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background: #1a237e;
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #1a237e;
+            border: none;
+            padding: 10px 20px;
+        }
+        .btn-primary:hover {
+            background-color: #283593;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .login-link a {
+            color: #1a237e;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .password-requirements {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .requirement-item {
+            font-size: 12px;
+            color: #6c757d;
+            margin: 3px 0;
+        }
+        .requirement-met {
+            color: #28a745;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container registration-container">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Admin Registration</h4>
+                <small>Create an administrator account</small>
+            </div>
+            <div class="card-body">
+                <form id="registrationForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" required>
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="workEmail" class="form-label">Work Email</label>
+                        <input type="email" class="form-control" id="workEmail" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="password-requirements">
+                            <div class="requirement-item" id="lengthReq">• Minimum 8 characters</div>
+                            <div class="requirement-item" id="upperReq">• At least one uppercase letter</div>
+                            <div class="requirement-item" id="lowerReq">• At least one lowercase letter</div>
+                            <div class="requirement-item" id="numberReq">• At least one number</div>
+                            <div class="requirement-item" id="specialReq">• At least one special character</div>
+                        </div>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <div class="error-message" id="confirmPasswordError"></div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Register as Admin</button>
+                    </div>
+                </form>
+                <div class="login-link">
+                    <p>Already have an account? <a href="/login">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registrationForm');
+        const usernameInput = document.getElementById('username');
+        const emailInput = document.getElementById('workEmail');
+        const passwordInput = document.getElementById('password');
+
+        // Password requirements check
+        const requirements = {
+            length: str => str.length >= 8,
+            upper: str => /[A-Z]/.test(str),
+            lower: str => /[a-z]/.test(str),
+            number: str => /[0-9]/.test(str),
+            special: str => /[!@#$%^&*]/.test(str)
+        };
+
+        passwordInput.addEventListener('input', () => {
+            const password = passwordInput.value;
+            document.getElementById('lengthReq').classList.toggle('requirement-met', requirements.length(password));
+            document.getElementById('upperReq').classList.toggle('requirement-met', requirements.upper(password));
+            document.getElementById('lowerReq').classList.toggle('requirement-met', requirements.lower(password));
+            document.getElementById('numberReq').classList.toggle('requirement-met', requirements.number(password));
+            document.getElementById('specialReq').classList.toggle('requirement-met', requirements.special(password));
+        });
+
+        form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = {
+        username: usernameInput.value,
+        work_email: emailInput.value,
+        password: passwordInput.value,
+        role: 'admin'
+    };
+
+    try {
+        const response = await fetch('/register/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(data.message);
+            window.location.href = data.redirect; // Redirect to login page
+        } else {
+            const errorField = data.field
+                ? document.getElementById(`${data.field}Error`)
+                : document.getElementById('passwordError');
+            errorField.textContent = data.error;
+            errorField.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred during registration. Please try again.');
+    }
+});
+
+    </script>
+</body>
+</html>

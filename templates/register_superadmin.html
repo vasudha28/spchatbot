@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin Registration</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .registration-container {
+            max-width: 500px;
+            margin: 50px auto;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background: #6a0dad;
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #6a0dad;
+            border: none;
+            padding: 10px;
+        }
+        .btn-primary:hover {
+            background-color: #8b00ff;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .login-link a {
+            color: #6a0dad;
+            text-decoration: none;
+        }
+        .password-requirements {
+            margin-top: 15px;
+        }
+        .requirement-list {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .requirement-item {
+            font-size: 13px;
+            margin: 5px 0;
+            color: #6c757d;
+        }
+        .strength-meter {
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 10px;
+            position: relative;
+            width: 100%;
+        }
+        .strength-meter-fill {
+            height: 100%;
+            background: #6a0dad;
+            border-radius: 5px;
+            width: 0;
+            transition: width 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container registration-container">
+        <div class="card">
+            <div class="card-header">
+                <h4>Super Admin Registration</h4>
+                <p>Create the only master administrator account</p>
+            </div>
+            <div class="card-body">
+                <form id="registrationForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" required>
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="workEmail" class="form-label">Work Email</label>
+                        <input type="email" class="form-control" id="workEmail" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="password-requirements mt-2">
+                            <div class="requirement-list">
+                                <p>Ensure your password meets these requirements:</p>
+                                <ul>
+                                    <li>Minimum 8 characters</li>
+                                    <li>At least one uppercase letter</li>
+                                    <li>At least one lowercase letter</li>
+                                    <li>At least one number</li>
+                                    <li>At least one special character</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="strength-meter">
+                            <div class="strength-meter-fill" id="strengthMeter"></div>
+                        </div>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <div class="error-message" id="confirmPasswordError"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                </form>
+                <div class="login-link">
+                    <p>Already registered? <a href="/login">Go to Login</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registrationForm');
+        const passwordInput = document.getElementById('password');
+        const strengthMeter = document.getElementById('strengthMeter');
+
+        // Password strength logic
+        function evaluateStrength(password) {
+            let strength = 0;
+            const checks = [
+                /.{8,}/, // Minimum 8 characters
+                /[A-Z]/, // At least one uppercase letter
+                /[a-z]/, // At least one lowercase letter
+                /[0-9]/, // At least one number
+                /[!@#$%^&*]/ // At least one special character
+            ];
+
+            checks.forEach((regex) => {
+                if (regex.test(password)) strength += 20;
+            });
+
+            return strength;
+        }
+
+        passwordInput.addEventListener('input', () => {
+            const strength = evaluateStrength(passwordInput.value);
+            strengthMeter.style.width = `${strength}%`;
+            strengthMeter.style.backgroundColor = strength < 60 ? '#dc3545' : (strength < 80 ? '#ffc107' : '#28a745');
+        });
+
+        form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const work_email = document.getElementById('workEmail').value;
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (password !== confirmPassword) {
+        document.getElementById('confirmPasswordError').textContent = 'Passwords do not match!';
+        document.getElementById('confirmPasswordError').style.display = 'block';
+        return;
+    }
+
+    const data = { username, work_email, password };
+
+    try {
+        const response = await fetch('/register/superadmin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('Super Admin registered successfully! Redirecting to login...');
+            window.location.href = '/login';
+        } else {
+            alert(result.error || 'Registration failed.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred during registration. Please try again.');
+    }
+});
+    </script>
+</body>
+</html>
